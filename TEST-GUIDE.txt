@@ -1,0 +1,592 @@
+==============================================
+CONTENT BROADCASTING SYSTEM - TEST GUIDE
+==============================================
+
+This document provides detailed examples of testing all API endpoints.
+Use Postman or cURL for testing. A Postman collection is provided in the project.
+
+==============================================
+1. AUTHENTICATION FLOW
+==============================================
+
+### 1.1 Register Teacher
+POST http://localhost:3000/api/auth/register
+Content-Type: application/json
+
+{
+  "name": "John Doe",
+  "email": "teacher1@example.com",
+  "password": "SecurePass123",
+  "role": "teacher"
+}
+
+Expected Response (201 Created):
+{
+  "status": "success",
+  "data": {
+    "user": {
+      "id": 1,
+      "email": "teacher1@example.com",
+      "role": "teacher",
+      "created_at": "2026-04-26T10:00:00.000Z"
+    }
+  }
+}
+
+
+### 1.2 Register Principal
+POST http://localhost:3000/api/auth/register
+Content-Type: application/json
+
+{
+  "name": "Principal Smith",
+  "email": "principal@example.com",
+  "password": "SecurePass123",
+  "role": "principal"
+}
+
+Expected Response (201 Created):
+{
+  "status": "success",
+  "data": {
+    "user": {
+      "id": 2,
+      "email": "principal@example.com",
+      "role": "principal",
+      "created_at": "2026-04-26T10:00:00.000Z"
+    }
+  }
+}
+
+
+### 1.3 Login Teacher
+POST http://localhost:3000/api/auth/login
+Content-Type: application/json
+
+{
+  "email": "teacher1@example.com",
+  "password": "SecurePass123"
+}
+
+Expected Response (200 OK):
+{
+  "status": "success",
+  "data": {
+    "token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
+    "user": {
+      "id": 1,
+      "name": "John Doe",
+      "email": "teacher1@example.com",
+      "role": "teacher"
+    }
+  }
+}
+
+⚠️  SAVE THIS TOKEN → Use as: Authorization: Bearer <token>
+
+
+### 1.4 Login Principal
+POST http://localhost:3000/api/auth/login
+Content-Type: application/json
+
+{
+  "email": "principal@example.com",
+  "password": "SecurePass123"
+}
+
+Expected Response (200 OK):
+{
+  "status": "success",
+  "data": {
+    "token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
+    "user": {
+      "id": 2,
+      "name": "Principal Smith",
+      "email": "principal@example.com",
+      "role": "principal"
+    }
+  }
+}
+
+==============================================
+2. CONTENT UPLOAD (TEACHER ONLY)
+==============================================
+
+### 2.1 Upload Content
+POST http://localhost:3000/api/content/upload
+Authorization: Bearer {teacher_token}
+Content-Type: multipart/form-data
+
+Form Fields:
+- title: "Algebra Basics" (string, required)
+- description: "Introduction to algebraic equations" (string, optional)
+- subject_id: 1 (number, required) [1=maths, 2=science, 3=english]
+- file: <binary-file> (jpg/png/gif, max 10MB, required)
+- start_time: "2026-04-26T09:00:00Z" (ISO timestamp, required)
+- end_time: "2026-04-26T18:00:00Z" (ISO timestamp, required)
+- rotation_duration: 5 (number in minutes, optional, default 5)
+
+Example cURL:
+curl -X POST http://localhost:3000/api/content/upload \
+  -H "Authorization: Bearer YOUR_TOKEN" \
+  -F "title=Algebra Basics" \
+  -F "description=Introduction to algebraic equations" \
+  -F "subject_id=1" \
+  -F "start_time=2026-04-26T09:00:00Z" \
+  -F "end_time=2026-04-26T18:00:00Z" \
+  -F "rotation_duration=5" \
+  -F "file=@/path/to/image.jpg"
+
+Expected Response (201 Created):
+{
+  "status": "success",
+  "data": {
+    "content": {
+      "id": 1,
+      "title": "Algebra Basics",
+      "subject_id": 1,
+      "status": "pending",
+      "created_at": "2026-04-26T10:00:00.000Z"
+    }
+  }
+}
+
+⚠️  SAVE CONTENT ID → Needed for approval workflow
+
+
+### 2.2 Get My Contents (Teacher)
+GET http://localhost:3000/api/content/my-contents
+Authorization: Bearer {teacher_token}
+
+Expected Response (200 OK):
+{
+  "status": "success",
+  "data": {
+    "total": 2,
+    "contents": [
+      {
+        "id": 1,
+        "title": "Algebra Basics",
+        "status": "pending",
+        "subject_id": 1,
+        "uploaded_by": 1,
+        "file_path": "uploads/1714137600000-123456.jpg",
+        "created_at": "2026-04-26T10:00:00.000Z"
+      }
+    ]
+  }
+}
+
+
+### 2.3 Get All Contents (with filters)
+GET http://localhost:3000/api/content
+GET http://localhost:3000/api/content?status=pending
+GET http://localhost:3000/api/content?status=approved&subject_id=1
+
+Authorization: Bearer {token}
+
+Query Parameters:
+- status: "pending" | "approved" | "rejected" (optional)
+- subject_id: number (optional)
+
+Expected Response (200 OK):
+{
+  "status": "success",
+  "data": {
+    "total": 5,
+    "contents": [...]
+  }
+}
+
+
+### 2.4 Get Specific Content
+GET http://localhost:3000/api/content/1
+Authorization: Bearer {token}
+
+Expected Response (200 OK):
+{
+  "status": "success",
+  "data": {
+    "content": {
+      "id": 1,
+      "title": "Algebra Basics",
+      "description": "Introduction to algebraic equations",
+      "status": "approved",
+      "subject_id": 1,
+      "uploaded_by": 1,
+      "uploaded_by_name": "John Doe",
+      "subject_name": "maths",
+      "file_path": "uploads/1714137600000-123456.jpg",
+      "file_type": "jpg",
+      "file_size": 102400,
+      "approved_by": 2,
+      "approved_by_name": "Principal Smith",
+      "approved_at": "2026-04-26T10:30:00.000Z"
+    }
+  }
+}
+
+==============================================
+3. APPROVAL WORKFLOW (PRINCIPAL ONLY)
+==============================================
+
+### 3.1 Get Pending Contents
+GET http://localhost:3000/api/approval/pending
+Authorization: Bearer {principal_token}
+
+Expected Response (200 OK):
+{
+  "status": "success",
+  "data": {
+    "total": 2,
+    "pending_contents": [
+      {
+        "id": 1,
+        "title": "Algebra Basics",
+        "status": "pending",
+        "uploaded_by_name": "John Doe",
+        "subject_name": "maths",
+        "created_at": "2026-04-26T10:00:00.000Z"
+      }
+    ]
+  }
+}
+
+
+### 3.2 Approve Content
+POST http://localhost:3000/api/approval/approve
+Authorization: Bearer {principal_token}
+Content-Type: application/json
+
+{
+  "content_id": 1
+}
+
+Expected Response (200 OK):
+{
+  "status": "success",
+  "message": "Content approved successfully",
+  "data": {
+    "content": {
+      "id": 1,
+      "title": "Algebra Basics",
+      "status": "approved",
+      "approved_at": "2026-04-26T10:30:00.000Z"
+    }
+  }
+}
+
+
+### 3.3 Reject Content
+POST http://localhost:3000/api/approval/reject
+Authorization: Bearer {principal_token}
+Content-Type: application/json
+
+{
+  "content_id": 1,
+  "rejection_reason": "File quality is poor and needs higher resolution"
+}
+
+Expected Response (200 OK):
+{
+  "status": "success",
+  "message": "Content rejected successfully",
+  "data": {
+    "content": {
+      "id": 1,
+      "title": "Algebra Basics",
+      "status": "rejected",
+      "rejection_reason": "File quality is poor and needs higher resolution",
+      "approved_at": "2026-04-26T10:30:00.000Z"
+    }
+  }
+}
+
+
+### 3.4 View All Contents by Status (Principal Dashboard)
+GET http://localhost:3000/api/approval
+GET http://localhost:3000/api/approval?status=approved
+GET http://localhost:3000/api/approval?status=rejected
+
+Authorization: Bearer {principal_token}
+
+Expected Response (200 OK):
+{
+  "status": "success",
+  "data": {
+    "total": 10,
+    "contents": [...]
+  }
+}
+
+==============================================
+4. SCHEDULING & ROTATION LOGIC
+==============================================
+
+### 4.1 Get Teacher's Schedule
+GET http://localhost:3000/api/schedule/my-schedule
+Authorization: Bearer {teacher_token}
+
+Expected Response (200 OK):
+{
+  "status": "success",
+  "data": {
+    "total": 3,
+    "schedule": [
+      {
+        "id": 1,
+        "title": "Algebra Basics",
+        "subject_id": 1,
+        "subject_name": "maths",
+        "status": "approved",
+        "start_time": "2026-04-26T09:00:00.000Z",
+        "end_time": "2026-04-26T18:00:00.000Z",
+        "duration": 5
+      }
+    ]
+  }
+}
+
+
+### 4.2 Get Subject Schedule
+GET http://localhost:3000/api/schedule/subject/1
+
+Expected Response (200 OK):
+{
+  "status": "success",
+  "data": {
+    "total": 3,
+    "schedule": [
+      {
+        "id": 1,
+        "content_id": 1,
+        "slot_id": 1,
+        "rotation_order": 1,
+        "duration": 5,
+        "title": "Algebra Basics",
+        "status": "approved"
+      }
+    ]
+  }
+}
+
+==============================================
+5. PUBLIC BROADCASTING API (STUDENTS - NO AUTH)
+==============================================
+
+### 5.1 Get Live Content for Specific Teacher
+GET http://localhost:3000/api/schedule/live/1
+
+No authentication required!
+
+Expected Response (200 OK):
+{
+  "status": "success",
+  "data": {
+    "content": {
+      "id": 1,
+      "title": "Algebra Basics",
+      "file_path": "uploads/1714137600000-123456.jpg",
+      "subject_id": 1,
+      "status": "approved",
+      "uploaded_by": 1,
+      "start_time": "2026-04-26T09:00:00.000Z",
+      "end_time": "2026-04-26T18:00:00.000Z"
+    }
+  }
+}
+
+⚠️  This endpoint uses rotation logic to determine which content to display
+
+
+### 5.2 Get Live Content for Teacher + Subject
+GET http://localhost:3000/api/schedule/live/1?subject_id=2
+
+Query Parameters:
+- subject_id: Filter by specific subject (optional)
+
+Expected Response (200 OK - Content Available):
+Same as 5.1
+
+
+### 5.3 No Content Available
+GET http://localhost:3000/api/schedule/live/999
+
+Expected Response (200 OK):
+{
+  "status": "success",
+  "message": "No content available",
+  "data": null
+}
+
+✅ Edge Case: Content exists but outside time window
+✅ Edge Case: No approved content
+✅ Edge Case: No content for that teacher
+
+==============================================
+6. CONTENT DELETION
+==============================================
+
+### 6.1 Delete Content
+DELETE http://localhost:3000/api/content/1
+Authorization: Bearer {token}
+
+Only content uploader or principal can delete!
+
+Expected Response (200 OK):
+{
+  "status": "success",
+  "data": {
+    "message": "Content deleted successfully"
+  }
+}
+
+File is also removed from filesystem!
+
+==============================================
+7. ERROR RESPONSES
+==============================================
+
+### 7.1 Missing Token
+GET http://localhost:3000/api/content/my-contents
+
+Expected Response (401 Unauthorized):
+{
+  "status": "error",
+  "statusCode": 401,
+  "message": "No token provided"
+}
+
+
+### 7.2 Invalid Token
+GET http://localhost:3000/api/content/my-contents
+Authorization: Bearer invalid_token_xyz
+
+Expected Response (401 Unauthorized):
+{
+  "status": "error",
+  "statusCode": 401,
+  "message": "Invalid or expired token"
+}
+
+
+### 7.3 Insufficient Permissions (Teacher trying Principal action)
+POST http://localhost:3000/api/approval/approve
+Authorization: Bearer {teacher_token}
+Content-Type: application/json
+
+{
+  "content_id": 1
+}
+
+Expected Response (403 Forbidden):
+{
+  "status": "error",
+  "statusCode": 403,
+  "message": "Insufficient permissions"
+}
+
+
+### 7.4 Content Not Found
+GET http://localhost:3000/api/content/99999
+Authorization: Bearer {token}
+
+Expected Response (404 Not Found):
+{
+  "status": "error",
+  "statusCode": 404,
+  "message": "Content not found"
+}
+
+
+### 7.5 Invalid File Format
+POST http://localhost:3000/api/content/upload
+Authorization: Bearer {teacher_token}
+Content-Type: multipart/form-data
+
+[Upload .pdf file]
+
+Expected Response (400 Bad Request):
+{
+  "status": "error",
+  "statusCode": 400,
+  "message": "Invalid file format. Allowed: jpg, jpeg, png, gif"
+}
+
+
+### 7.6 File Size Exceeds Limit
+POST http://localhost:3000/api/content/upload
+Authorization: Bearer {teacher_token}
+Content-Type: multipart/form-data
+
+[Upload 50MB file]
+
+Expected Response (400 Bad Request):
+{
+  "status": "error",
+  "statusCode": 400,
+  "message": "File size exceeds limit of 10485760 bytes"
+}
+
+==============================================
+8. HEALTH CHECK
+==============================================
+
+### 8.1 Server Status
+GET http://localhost:3000/api/health
+
+Expected Response (200 OK):
+{
+  "status": "ok",
+  "timestamp": "2026-04-26T10:00:00.000Z"
+}
+
+==============================================
+TESTING ROTATION LOGIC
+==============================================
+
+Setup:
+1. Create 3 content items for Maths (subject_id = 1)
+   - Content A: 5 min duration, start: 09:00, end: 18:00
+   - Content B: 3 min duration, start: 09:00, end: 18:00
+   - Content C: 2 min duration, start: 09:00, end: 18:00
+
+2. Approve all 3 contents
+
+3. Current time: 09:17
+   - Total cycle: 10 minutes
+   - Position: 7 minutes into cycle
+   - Active: Content B (should be shown)
+
+4. Test:
+   GET /api/schedule/live/{teacher_id}
+   
+   Should return Content B
+
+5. Wait 3 minutes (time: 09:20)
+   - Position: 0 minutes into cycle
+   - Active: Content A (cycle restarted)
+
+==============================================
+POSTMAN WORKFLOW
+==============================================
+
+1. Import Postman-Collection.json into Postman
+
+2. Set environment variables:
+   - base_url: http://localhost:3000
+   - teacher_token: (will be set by login)
+   - principal_token: (will be set by login)
+
+3. Run requests in order:
+   ✓ Register Teacher
+   ✓ Register Principal
+   ✓ Login Teacher (saves token)
+   ✓ Login Principal (saves token)
+   ✓ Upload Content
+   ✓ Get Pending Contents
+   ✓ Approve Content
+   ✓ Get Live Content
+   ✓ Get My Schedule
+
+==============================================

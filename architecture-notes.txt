@@ -1,0 +1,466 @@
+CONTENT BROADCASTING SYSTEM - ARCHITECTURE NOTES
+================================================
+
+## 1. AUTHENTICATION & RBAC FLOW
+================================
+
+### JWT-Based Authentication:
+- Users register with email, password, name, and role (principal/teacher)
+- Password is hashed using bcrypt (salt rounds: 10)
+- On login, JWT token is issued with user ID, email, and role
+- Token expires in 7 days (configurable via JWT_EXPIRE)
+
+### Role-Based Access Control:
+- Two roles: principal, teacher
+- Principal: Can approve/reject content, view all content, dashboard access
+- Teacher: Can upload content, view own content, schedule content
+- Middleware validates role on protected routes
+- Unauthorized access returns 403 Forbidden
+
+### Implementation:
+- authMiddleware.js: Verifies JWT token and extracts user info
+- roleMiddleware.js: Checks if user has required role
+- All protected routes use: authMiddleware → roleMiddleware(['allowed_roles'])
+
+---
+
+## 2. SUBJECT-BASED SYSTEM DESIGN
+==================================
+
+### Database Structure:
+- Subjects table: Stores all available subjects (maths, science, english)
+- Each subject has one content_slot per subject_id
+- Content_slots allow for independent rotation per subject
+
+### Content Assignment:
+- Teachers upload content with mandatory subject_id
+- Content is linked to subject_id (foreign key)
+- System validates subject exists before content creation
+
+### Filtering:
+- GET /api/content/ can filter by subject_id
+- GET /api/schedule/live/:teacherId?subject_id=1 filters by subject
+
+---
+
+## 3. UPLOAD HANDLING APPROACH
+==============================
+
+### File Validation:
+- Allowed formats: JPG, JPEG, PNG, GIF (configurable via ALLOWED_FORMATS)
+- Max file size: 10MB (configurable via MAX_FILE_SIZE)
+- Validation happens before file is processed
+
+### Storage:
+- Local file system storage (required feature)
+- Files stored in ./uploads directory
+- Multer configured with diskStorage
+- File naming: unique timestamp + random ID + original extension
+- Files served via /uploads/:filename endpoint
+
+### Content Metadata:
+- file_path: Full path to uploaded file
+- file_type: Extension (jpg, png, gif)
+- file_size: Bytes
+- All metadata stored in database
+
+### File Cleanup:
+- On rejection, file is deleted from disk
+- On content deletion, file is removed
+- Database record removal cascades to schedules
+
+---
+
+## 4. APPROVAL WORKFLOW DESIGN
+===============================
+
+### Content Lifecycle:
+uploaded → pending → approved/rejected
+
+### Workflow Stages:
+1. Teacher uploads content → status = 'pending'
+2. Principal views pending content
+3. Principal approves OR rejects:
+   - Approve: status = 'approved', approved_by = principal_id, approved_at = timestamp
+   - Reject: status = 'rejected', rejection_reason = reason, approved_by = principal_id
+4. Only approved content goes live
+
+### Endpoints:
+- GET /api/approval/pending - List all pending content
+- POST /api/approval/approve - Approve content (principal only)
+- POST /api/approval/reject - Reject with reason (principal only)
+- GET /api/approval - View all content by status (principal only)
+
+### Validation:
+- Only principal can approve/reject
+- Rejection requires reason (max 500 chars)
+- Cannot re-approve/re-reject already processed content
+- Content must exist
+
+---
+
+## 5. SCHEDULING/ROTATION LOGIC (MOST IMPORTANT)
+================================================
+
+### Key Concepts:
+- Multiple content items can be scheduled for a subject
+- Each content has duration (rotation time) in minutes
+- System calculates active content based on current time
+- Rotation is continuous and cycles through all content
+
+### Time-Based Scheduling:
+- Each content has start_time and end_time
+- Content is ONLY shown within this window
+- Outside window → not available (Edge case 2)
+
+### Rotation Algorithm (calculateActiveContent):
+1. Group approved content by subject
+2. For each subject:
+   - Calculate total cycle duration = SUM(all content durations in minutes) * 60,000 ms
+   - Find earliest start_time among all content
+   - Calculate time elapsed since earliest start_time
+   - Calculate position in cycle = elapsed_time % cycle_duration
+   - Find which content is active by accumulating durations
+3. Return active content for rotation
+
+### Example Rotation (Maths subject):
+Content A: 5 min, Content B: 5 min, Content C: 5 min
+Total cycle: 15 minutes
+
+Time 0-5 min: A shown
+Time 5-10 min: B shown
+Time 10-15 min: C shown
+Time 15-20 min: A shown (cycle repeats)
+
+### Edge Cases Handled:
+1. No approved content: Returns null → "No content available"
+2. Approved but outside time window: Not returned
+3. No content in subject: Returns empty array
+4. Invalid subject: Returns empty response (not error)
+
+### Database Structure:
+- content_schedule.duration: Minutes to show this content
+- content_schedule.rotation_order: Sequence in subject
+- content.start_time: When content becomes available
+- content.end_time: When content stops being available
+
+### Key Query:
+```sql
+SELECT c.* FROM contents c
+WHERE uploaded_by = $1 
+AND status = 'approved'
+AND start_time <= NOW()
+AND end_time >= NOW()
+ORDER BY subject_id, rotation_order
+```
+
+---
+
+## 6. DATABASE DESIGN DECISIONS
+==============================
+
+### Users Table:
+- id: SERIAL PRIMARY KEY
+- email: UNIQUE (prevents duplicate accounts)
+- role: CHECK constraint (principal/teacher only)
+- password_hash: Bcrypt hash (never plain text)
+- created_at: Audit trail
+
+### Contents Table:
+- Status flow: uploaded → pending → approved/rejected
+- Dual timestamp: created_at (upload time), approved_at (decision time)
+- approved_by: Tracks which principal approved
+- rejection_reason: Stored for visibility
+- start_time/end_time: Teacher controls scheduling window
+- file_path: Full server path
+- Indexes on status, subject_id for query performance
+
+### Content_Slots Table:
+- Per-subject rotation management
+- One slot per subject
+- Allows independent rotation per subject
+
+### Content_Schedule Table:
+- Links content to slots
+- rotation_order: Sequence within subject
+- duration: Minutes to display content
+- Foreign keys cascade delete
+
+### Indexes:
+- idx_content_status: Fast filtering by status
+- idx_content_subject: Fast subject-based queries
+- idx_schedule_slot: Fast slot lookups
+
+### Relationships:
+- contents → users (uploaded_by): ON DELETE CASCADE
+- contents → subjects: ON DELETE CASCADE
+- content_schedule → contents: ON DELETE CASCADE
+- content_schedule → content_slots: ON DELETE CASCADE
+
+---
+
+## 7. FOLDER STRUCTURE
+======================
+
+```
+content-broadcasting-system/
+├── src/
+│   ├── config/
+│   │   └── database.js           (PostgreSQL connection pool)
+│   ├── controllers/
+│   │   ├── authController.js     (Login/Register)
+│   │   ├── contentController.js  (Upload, CRUD)
+│   │   ├── approvalController.js (Approve/Reject)
+│   │   └── scheduleController.js (Rotation/Live API)
+│   ├── routes/
+│   │   ├── authRoutes.js
+│   │   ├── contentRoutes.js
+│   │   ├── approvalRoutes.js
+│   │   └── scheduleRoutes.js
+│   ├── middlewares/
+│   │   ├── authMiddleware.js     (JWT verification)
+│   │   └── roleMiddleware.js     (RBAC enforcement)
+│   ├── services/
+│   │   ├── authService.js        (Auth logic)
+│   │   ├── contentService.js     (Upload/Content logic)
+│   │   └── scheduleService.js    (Rotation algorithm)
+│   ├── utils/
+│   │   ├── errorHandler.js       (Error classes & middleware)
+│   │   └── validators.js         (Joi validation schemas)
+│   ├── app.js                    (Express app setup)
+│   └── server.js                 (Server entry point)
+├── uploads/                      (File storage directory)
+├── .env                          (Environment variables)
+├── package.json
+├── architecture-notes.txt        (This file)
+└── README.md
+
+```
+
+---
+
+## 8. MIDDLEWARE USAGE
+======================
+
+### Global Middlewares (app.js):
+- helmet(): Security headers
+- cors(): Cross-origin requests
+- morgan(): HTTP request logging
+- express.json(): JSON parsing
+- express.urlencoded(): Form data parsing
+
+### Route Middlewares:
+- authMiddleware: JWT token verification
+- roleMiddleware: Role-based access check
+
+### Error Handling:
+- Catch-all 404 handler
+- Global error middleware with proper status codes
+
+---
+
+## 9. SCALABILITY APPROACH
+==========================
+
+### Current Implementation:
+- Single PostgreSQL instance with connection pooling (max 20)
+- Local file storage with unique naming
+
+### Improvements for Scale:
+
+#### 1. Caching (Redis):
+- Cache /api/schedule/live/:teacherId responses (5-min TTL)
+- Reduces database queries for public API
+- Invalidate on content approval/rejection
+
+#### 2. Database Optimization:
+- Add composite indexes: (uploaded_by, status), (subject_id, status)
+- Partition contents table by date for large datasets
+- Archive old content to separate table
+
+#### 3. File Storage:
+- Migrate to S3 for cloud storage
+- Use CDN for file delivery
+- Implement automatic cleanup of old files
+
+#### 4. API Rate Limiting:
+- Use express-rate-limit on public endpoints
+- Protect /api/schedule/live from abuse
+
+#### 5. Queue System:
+- Use Bull/Bee-Queue for async content approval notifications
+- Email notifications to teachers on approval/rejection
+
+#### 6. Load Balancing:
+- Multiple API instances behind nginx/load balancer
+- Sticky sessions for file uploads if needed
+
+#### 7. Monitoring:
+- Application Performance Monitoring (APM)
+- Error tracking with Sentry
+- Database query performance monitoring
+
+---
+
+## 10. API ENDPOINTS SUMMARY
+============================
+
+### Authentication:
+POST   /api/auth/register                 - Register user
+POST   /api/auth/login                    - Login & get JWT
+
+### Content Management (Teacher):
+POST   /api/content/upload                - Upload content (multipart)
+GET    /api/content/my-contents           - View own content
+
+### Content Management (Principal):
+GET    /api/content                       - View all content (with filters)
+GET    /api/content/:id                   - Get specific content
+
+### Content Deletion:
+DELETE /api/content/:id                   - Delete content
+
+### Approval Workflow (Principal Only):
+GET    /api/approval/pending              - View pending content
+POST   /api/approval/approve              - Approve content
+POST   /api/approval/reject               - Reject content
+GET    /api/approval                      - View all content by status
+
+### Schedule & Broadcasting (Public):
+GET    /api/schedule/live/:teacherId      - Get active content (PUBLIC)
+GET    /api/schedule/subject/:subjectId   - Get subject schedule
+GET    /api/schedule/my-schedule          - View own schedule
+
+### Health:
+GET    /api/health                        - Server health check
+
+---
+
+## 11. ERROR HANDLING & VALIDATION
+==================================
+
+### Input Validation:
+- Joi schemas for all request bodies
+- File type and size validation
+- Email format validation
+- Subject existence validation
+
+### Error Responses:
+- 400: Bad request (validation failed)
+- 401: Unauthorized (no token/invalid token)
+- 403: Forbidden (insufficient permissions)
+- 404: Not found
+- 500: Server error
+
+### Custom Error Class:
+- AppError: Standardized error with status code
+- handleError middleware: Formats all errors consistently
+
+---
+
+## 12. SECURITY MEASURES
+========================
+
+- Passwords hashed with bcrypt (10 rounds)
+- JWT tokens expire after 7 days
+- CORS enabled for frontend integration
+- Helmet.js for security headers
+- SQL injection prevention via parameterized queries
+- No sensitive data in API responses
+- File upload validation (type & size)
+- Role-based access control on all protected routes
+
+---
+
+## 13. DEPLOYMENT CONSIDERATIONS
+================================
+
+### Environment Variables:
+- DATABASE_URL: PostgreSQL connection string
+- JWT_SECRET: Change in production (use strong random string)
+- NODE_ENV: Set to 'production'
+- PORT: Customize as needed
+- UPLOAD_DIR: Ensure writable directory
+- MAX_FILE_SIZE: Adjust based on infrastructure
+
+### Production Checklist:
+- Set JWT_SECRET to strong random value
+- Use environment-specific database
+- Enable HTTPS only
+- Set CORS origins to specific frontend domain
+- Implement rate limiting
+- Setup error monitoring (Sentry)
+- Use production-grade PostgreSQL instance
+- Enable database backups
+- Setup CDN for file delivery
+
+---
+
+## 14. CONTENT UPLOAD WORKFLOW (EXAMPLE)
+=========================================
+
+1. Teacher logs in → Gets JWT token
+2. Teacher uploads file:
+   POST /api/content/upload
+   - Multipart form with file + metadata
+   - Server validates file format & size
+   - File saved to ./uploads/ with unique name
+   - Database record created with status='pending'
+   - Returns content_id to teacher
+
+3. Principal sees pending content:
+   GET /api/approval/pending
+   - Returns list of pending uploads
+
+4. Principal approves:
+   POST /api/approval/approve
+   - Status changed to 'approved'
+   - approved_by and approved_at set
+
+5. Students fetch live content:
+   GET /api/schedule/live/teacher-id
+   - System calculates active content using rotation logic
+   - Returns currently active content within time window
+   - If no content available, returns empty response
+
+---
+
+## 15. ROTATION LOGIC EXAMPLE (DETAILED)
+========================================
+
+Setup:
+- Maths Subject has 3 approved content items:
+  * Content A: 5 min, Start: 2026-04-26 09:00, End: 2026-04-26 18:00
+  * Content B: 3 min, Start: 2026-04-26 09:00, End: 2026-04-26 18:00
+  * Content C: 2 min, Start: 2026-04-26 09:00, End: 2026-04-26 18:00
+
+Cycle Duration: (5 + 3 + 2) * 60 * 1000 = 600,000 ms = 10 minutes
+
+Current Time: 2026-04-26 09:17:00
+Earliest Start: 2026-04-26 09:00:00
+Elapsed Time: 17 minutes = 1,020,000 ms
+Position in Cycle: 1,020,000 % 600,000 = 420,000 ms (7 minutes into cycle)
+
+Calculation:
+- 0-300,000 ms (5 min): Content A
+- 300,000-480,000 ms (3 min): Content B
+- 480,000-600,000 ms (2 min): Content C
+
+420,000 ms falls in range 300,000-480,000 → Content B is active
+
+Result: Return Content B with metadata
+
+---
+
+## CONCLUSION
+=============
+
+This architecture provides:
+✓ Secure authentication with JWT & RBAC
+✓ Efficient file upload with validation
+✓ Proper approval workflow
+✓ Complex scheduling/rotation logic
+✓ Clean separation of concerns
+✓ Scalable foundation
+✓ Edge case handling
+✓ Production-ready error handling

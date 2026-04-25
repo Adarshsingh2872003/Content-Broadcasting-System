@@ -1,0 +1,543 @@
+{
+  "info": {
+    "name": "Content Broadcasting System API",
+    "description": "Complete API collection for testing",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "item": [
+    {
+      "name": "Authentication",
+      "item": [
+        {
+          "name": "Register Teacher",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Alice Johnson\",\n  \"email\": \"alice@school.com\",\n  \"password\": \"password123\",\n  \"role\": \"teacher\"\n}"
+            },
+            "url": {
+              "raw": "http://localhost:5000/api/auth/register",
+              "protocol": "http",
+              "host": ["localhost"],
+              "port": "5000",
+              "path": ["api", "auth", "register"]
+            }
+          }
+        },
+        {
+          "name": "Register Principal",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Dr. Smith\",\n  \"email\": \"principal@school.com\",\n  \"password\": \"password123\",\n  \"role\": \"principal\"\n}"
+            },
+            "url": {
+              "raw": "http://localhost:5000/api/auth/register",
+              "protocol": "http",
+              "host": ["localhost"],
+              "port": "5000",
+              "path": ["api", "auth", "register"]
+            }
+          }
+        },
+        {
+          "name": "Login Teacher",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"alice@school.com\",\n  \"password\": \"password123\"\n}"
+            },
+            "url": {
+              "raw": "http://localhost:5000/api/auth/login",
+              "protocol": "http",
+              "host": ["localhost"],
+              "port": "5000",
+              "path": ["api", "auth", "login"]
+            }
+          }
+        },
+        {
+          "name": "Login Principal",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"principal@school.com\",\n  \"password\": \"password123\"\n}"
+            },
+            "url": {
+              "raw": "http://localhost:5000/api/auth/login",
+              "protocol": "http",
+              "host": ["localhost"],
+              "port": "5000",
+              "path": ["api", "auth", "login"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Content Upload (Teacher)",
+      "item": [
+        {
+          "name": "Upload Content - Maths",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{teacher_token}}"
+              }
+            ],
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                {
+                  "key": "title",
+                  "value": "Algebra Basics - Chapter 1"
+                },
+                {
+                  "key": "description",
+                  "value": "Introduction to algebraic equations and solving"
+                },
+                {
+                  "key": "subject_id",
+                  "value": "1"
+                },
+                {
+                  "key": "start_time",
+                  "value": "2026-04-26T09:00:00Z"
+                },
+                {
+                  "key": "end_time",
+                  "value": "2026-04-26T18:00:00Z"
+                },
+                {
+                  "key": "rotation_duration",
+                  "value": "5"
+                },
+                {
+                  "key": "file",
+                  "type": "file",
+                  "src": "path/to/image.jpg"
+                }
+              ]
+            },
+            "url": {
+              "raw": "http://localhost:5000/api/content/upload",
+              "protocol": "http",
+              "host": ["localhost"],
+              "port": "5000",
+              "path": ["api", "content", "upload"]
+            }
+          }
+        },
+        {
+          "name": "Upload Content - Science",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{teacher_token}}"
+              }
+            ],
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                {
+                  "key": "title",
+                  "value": "Biology Lab - Cell Structure"
+                },
+                {
+                  "key": "description",
+                  "value": "Study of cell components and their functions"
+                },
+                {
+                  "key": "subject_id",
+                  "value": "2"
+                },
+                {
+                  "key": "start_time",
+                  "value": "2026-04-26T10:00:00Z"
+                },
+                {
+                  "key": "end_time",
+                  "value": "2026-04-26T17:00:00Z"
+                },
+                {
+                  "key": "rotation_duration",
+                  "value": "3"
+                },
+                {
+                  "key": "file",
+                  "type": "file",
+                  "src": "path/to/image.png"
+                }
+              ]
+            },
+            "url": {
+              "raw": "http://localhost:5000/api/content/upload",
+              "protocol": "http",
+              "host": ["localhost"],
+              "port": "5000",
+              "path": ["api", "content", "upload"]
+            }
+          }
+        },
+        {
+          "name": "Get My Contents",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{teacher_token}}"
+              }
+            ],
+            "url": {
+              "raw": "http://localhost:5000/api/content/my-contents",
+              "protocol": "http",
+              "host": ["localhost"],
+              "port": "5000",
+              "path": ["api", "content", "my-contents"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Approval Workflow (Principal)",
+      "item": [
+        {
+          "name": "Get Pending Contents",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{principal_token}}"
+              }
+            ],
+            "url": {
+              "raw": "http://localhost:5000/api/approval/pending",
+              "protocol": "http",
+              "host": ["localhost"],
+              "port": "5000",
+              "path": ["api", "approval", "pending"]
+            }
+          }
+        },
+        {
+          "name": "Approve Content",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{principal_token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"content_id\": 1\n}"
+            },
+            "url": {
+              "raw": "http://localhost:5000/api/approval/approve",
+              "protocol": "http",
+              "host": ["localhost"],
+              "port": "5000",
+              "path": ["api", "approval", "approve"]
+            }
+          }
+        },
+        {
+          "name": "Reject Content",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{principal_token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"content_id\": 2,\n  \"rejection_reason\": \"Image quality is too low\"\n}"
+            },
+            "url": {
+              "raw": "http://localhost:5000/api/approval/reject",
+              "protocol": "http",
+              "host": ["localhost"],
+              "port": "5000",
+              "path": ["api", "approval", "reject"]
+            }
+          }
+        },
+        {
+          "name": "View All Contents by Status",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{principal_token}}"
+              }
+            ],
+            "url": {
+              "raw": "http://localhost:5000/api/approval?status=pending",
+              "protocol": "http",
+              "host": ["localhost"],
+              "port": "5000",
+              "path": ["api", "approval"],
+              "query": [
+                {
+                  "key": "status",
+                  "value": "pending"
+                }
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Content Management",
+      "item": [
+        {
+          "name": "Get All Contents",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{teacher_token}}"
+              }
+            ],
+            "url": {
+              "raw": "http://localhost:5000/api/content",
+              "protocol": "http",
+              "host": ["localhost"],
+              "port": "5000",
+              "path": ["api", "content"]
+            }
+          }
+        },
+        {
+          "name": "Get All Contents - Filter by Status",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{teacher_token}}"
+              }
+            ],
+            "url": {
+              "raw": "http://localhost:5000/api/content?status=approved",
+              "protocol": "http",
+              "host": ["localhost"],
+              "port": "5000",
+              "path": ["api", "content"],
+              "query": [
+                {
+                  "key": "status",
+                  "value": "approved"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Get All Contents - Filter by Subject",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{teacher_token}}"
+              }
+            ],
+            "url": {
+              "raw": "http://localhost:5000/api/content?subject_id=1",
+              "protocol": "http",
+              "host": ["localhost"],
+              "port": "5000",
+              "path": ["api", "content"],
+              "query": [
+                {
+                  "key": "subject_id",
+                  "value": "1"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Get Content by ID",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{teacher_token}}"
+              }
+            ],
+            "url": {
+              "raw": "http://localhost:5000/api/content/1",
+              "protocol": "http",
+              "host": ["localhost"],
+              "port": "5000",
+              "path": ["api", "content", "1"]
+            }
+          }
+        },
+        {
+          "name": "Delete Content",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{teacher_token}}"
+              }
+            ],
+            "url": {
+              "raw": "http://localhost:5000/api/content/1",
+              "protocol": "http",
+              "host": ["localhost"],
+              "port": "5000",
+              "path": ["api", "content", "1"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Public Broadcasting API",
+      "item": [
+        {
+          "name": "Get Live Content for Teacher (No Auth)",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "http://localhost:5000/api/schedule/live/1",
+              "protocol": "http",
+              "host": ["localhost"],
+              "port": "5000",
+              "path": ["api", "schedule", "live", "1"]
+            }
+          }
+        },
+        {
+          "name": "Get Live Content - Filter by Subject",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "http://localhost:5000/api/schedule/live/1?subject_id=1",
+              "protocol": "http",
+              "host": ["localhost"],
+              "port": "5000",
+              "path": ["api", "schedule", "live", "1"],
+              "query": [
+                {
+                  "key": "subject_id",
+                  "value": "1"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Get My Schedule (Teacher)",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{teacher_token}}"
+              }
+            ],
+            "url": {
+              "raw": "http://localhost:5000/api/schedule/my-schedule",
+              "protocol": "http",
+              "host": ["localhost"],
+              "port": "5000",
+              "path": ["api", "schedule", "my-schedule"]
+            }
+          }
+        },
+        {
+          "name": "Get Subject Schedule",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "http://localhost:5000/api/schedule/subject/1",
+              "protocol": "http",
+              "host": ["localhost"],
+              "port": "5000",
+              "path": ["api", "schedule", "subject", "1"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Health Check",
+      "request": {
+        "method": "GET",
+        "url": {
+          "raw": "http://localhost:5000/api/health",
+          "protocol": "http",
+          "host": ["localhost"],
+          "port": "5000",
+          "path": ["api", "health"]
+        }
+      }
+    }
+  ],
+  "variable": [
+    {
+      "key": "teacher_token",
+      "value": "paste_teacher_jwt_token_here"
+    },
+    {
+      "key": "principal_token",
+      "value": "paste_principal_jwt_token_here"
+    }
+  ]
+}
