@@ -6,13 +6,13 @@ const { validateContentUpload } = require('../utils/validators');
 
 class UploadService {
     static validateFileType(filename) {
-        const allowedFormats = process.env.ALLOWED_FORMATS.split(',');
+        const allowedFormats = (process.env.ALLOWED_FORMATS || 'jpg,jpeg,png,gif').split(',');
         const fileExt = path.extname(filename).toLowerCase().substring(1);
         return allowedFormats.includes(fileExt);
     }
 
     static validateFileSize(fileSize) {
-        const maxSize = parseInt(process.env.MAX_FILE_SIZE);
+        const maxSize = parseInt(process.env.MAX_FILE_SIZE || '10485760');
         return fileSize <= maxSize;
     }
 

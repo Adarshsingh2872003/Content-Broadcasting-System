@@ -8,6 +8,9 @@
     "dev": "nodemon src/server.js",
     "test": "jest"
   },
+  "engines": {
+    "node": ">=18.0.0"
+  },
   "keywords": [
     "content",
     "broadcasting",
